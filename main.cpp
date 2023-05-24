@@ -1,6 +1,6 @@
 #include <ncurses.h>
 #include <random>
-#include <future>
+#include <thread>
 #include <signal.h>
 #include <iostream>
 #include "myWindows.h"
