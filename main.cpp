@@ -85,9 +85,9 @@ int main(int argc, char ** argv)
 	std::thread detach_threads (generate_balls);
 
 	bool all_finished = false;
-
+	wclear(windows.main_window);
 	do {
-		wclear(windows.main_window);
+		werase(windows.main_window);
         windows.print_all_borders();
 		all_finished = true;
 		for (int i = 0; i < balls_vector.size(); i++) {
