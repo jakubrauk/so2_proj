@@ -1,6 +1,8 @@
 #include <ncurses.h>
 #include <random>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <signal.h>
 #include <iostream>
 #include <atomic>
@@ -20,13 +22,98 @@ std::vector<std::thread> threads_vector;
 std::vector<Ball*> balls_vector;
 std::vector<Ball*> *balls_vector_ptr = &balls_vector;
 
+bool can_enter_a = true;
+bool can_enter_b = true;
+bool can_enter_c = true;
+
+std::mutex a_mutex;
+std::mutex b_mutex;
+std::mutex c_mutex;
+
+std::condition_variable a_zone_cv;
+std::condition_variable b_zone_cv;
+std::condition_variable c_zone_cv;
+
+
+
+
 
 void ballThreadFunc(Ball *ball) {
 	while (ball->exists) {
 		if (!keep_going.load()) {
 			break;
 		}
+		int current_zone = ball->get_zone_number();
+		int next_zone = ball->get_next_zone_number();
+
+		if (ball->is_blocking) {
+			if (current_zone == 1 && can_enter_a) {
+				can_enter_a = false;
+				// a_zone_cv.notify_all();
+			} else if (current_zone == 2 && can_enter_b) {
+				can_enter_b = false;
+				// b_zone_cv.notify_all();
+			} else if (current_zone == 3 && can_enter_c) {
+				can_enter_c = false;
+				// c_zone_cv.notify_all();
+			}
+		}
+
+		// only when changing zones
+		if (current_zone != next_zone) {
+			if (current_zone == 1 && next_zone == 2) {
+				// A -> B
+				if (ball->is_blocking) {
+					can_enter_a = true;
+					a_zone_cv.notify_all();
+				}
+				std::unique_lock<std::mutex> lock_b(b_mutex);
+				b_zone_cv.wait(lock_b, [] { return can_enter_b; });
+			}
+			else if (current_zone == 2 && next_zone == 1) {
+				// B -> A
+				if (ball->is_blocking) {
+					can_enter_b = true;
+					b_zone_cv.notify_all();
+				}
+				std::unique_lock<std::mutex> lock_a(a_mutex);
+				a_zone_cv.wait(lock_a, [] { return can_enter_a; });
+			}
+			else if (current_zone == 2 && next_zone == 3) {
+				// B -> C
+				if (ball->is_blocking) {
+					can_enter_b = true;
+					b_zone_cv.notify_all();
+				}
+				std::unique_lock<std::mutex> lock_c(c_mutex);
+				c_zone_cv.wait(lock_c, [] { return can_enter_c; });
+			}
+			else if (current_zone == 3 && next_zone == 2) {
+				// C -> B
+				if (ball->is_blocking) {
+					can_enter_c = true;
+					c_zone_cv.notify_all();
+				}
+				std::unique_lock<std::mutex> lock_b(b_mutex);
+				b_zone_cv.wait(lock_b, [] { return can_enter_b; });
+			}
+		}	
+
 		ball->move_ball();
+		if (!ball->exists && ball->is_blocking) {
+			if (next_zone == 1) {
+				can_enter_a = true;
+				a_zone_cv.notify_all();
+			}
+			else if (next_zone == 2) {
+				can_enter_b = true;
+				b_zone_cv.notify_all();
+			}
+			else if (next_zone == 3) {
+				can_enter_c = true;
+				c_zone_cv.notify_all();
+			}
+		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(ball->speed));
 	}
 }
@@ -38,6 +125,12 @@ void scanKey()
 		int ch = getch();
 		if (ch == ' ') {
 			keep_going.store(false);
+			can_enter_a = true;
+			can_enter_b = true;
+			can_enter_c = true;
+			a_zone_cv.notify_all();
+			b_zone_cv.notify_all();
+			c_zone_cv.notify_all();
 			break;
 		}
 	}
@@ -48,11 +141,11 @@ void generate_balls() {
 	while(keep_going.load()) {
 		std::random_device rd;
 		std::mt19937 mt{rd()};
-		std::uniform_int_distribution<int> ui(0, 6);
+		std::uniform_int_distribution<int> ui(5, 7);
 		std::this_thread::sleep_for(std::chrono::seconds(ui(mt)));
 
 		// new ball declaration
-		Ball *new_ball = new Ball(15, 30, 6, 80, &running);
+		Ball *new_ball = new Ball(15, 30, 6, 120, &running);
 
 		// pushing ball to balls vector
 		balls_vector_ptr->push_back(new_ball);

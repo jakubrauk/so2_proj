@@ -37,7 +37,12 @@ void MyWindows::draw_ball(Ball *ball) {
     if (ball->exists) {
         int x = static_cast<int>(ball->bx);
         int y = static_cast<int>(ball->by);
-        mvwprintw(main_window, x, y, "%c", ball->ball_ch);
+        if (ball->is_blocking) {
+            mvwprintw(main_window, x, y, "%c%d", 'B', ball->get_zone_number());
+        }
+        else {
+            mvwprintw(main_window, x, y, "%c%d", ball->ball_ch, ball->get_zone_number());
+        }
     }
 }
 

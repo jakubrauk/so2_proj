@@ -4,6 +4,7 @@
 Ball::Ball(int start_x, int start_y, int max_bounces_, int initial_speed, bool *run_) {
     bx = start_x;
     by = start_y;
+	is_blocking = rand() > (RAND_MAX / 2);
 	ball_ch = random_ball_char();
     max_bounces = max_bounces_;
     speed = initial_speed;
@@ -65,7 +66,7 @@ void Ball::move_ball() {
 		vy = -vy;
 		bounces++;
 	}
-    if (bounces == max_bounces) {
+    if (bounces >= max_bounces) {
 		exists = false;
 		run = false;
 	};
@@ -79,6 +80,40 @@ void Ball::thread_func() {
 		}
 	}
 	
+}
+
+int Ball::get_next_y() {
+	// int possible_next = by + vy;
+
+	// if (possible_next < 0) return 0;
+	// if (possible_next > 90) return 90;
+	return by + vy;
+}
+
+int Ball::get_zone_number() {
+	// 1 zone A
+	// 2 zone B
+	// 3 zone C
+
+	if (by < 29) {
+		return 1;
+	}
+	else if (by >= 29 && by < 59){
+		return 2;
+	}
+	return 3;
+}
+
+int Ball::get_next_zone_number() {
+	int possible_next = get_next_y();
+
+	if (possible_next < 29) {
+		return 1;
+	}
+	else if (possible_next >= 29 && possible_next < 59) {
+		return 2;
+	}
+	return 3;
 }
 
 char Ball::random_ball_char() {
