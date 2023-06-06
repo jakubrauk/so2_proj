@@ -3,6 +3,7 @@
 #include <thread>
 #include <signal.h>
 #include <iostream>
+#include <atomic>
 #include "myWindows.h"
 
 int px = 45;
@@ -13,99 +14,92 @@ double bx = 0.0, by = 0.0;
 double vx = 0.0, vy = 0.0;
 char available_chars[] = "axscuore+=";
 bool running = true;
+static std::atomic<bool> keep_going;
 int balls_amount = 20;
 std::vector<std::thread> threads_vector;
-std::vector<Ball> balls_vector;
+std::vector<Ball*> balls_vector;
+std::vector<Ball*> *balls_vector_ptr = &balls_vector;
 
 
 void ballThreadFunc(Ball *ball) {
-	while (ball->run) {
-		while (ball->exists) {
-			ball->move_ball();
-			std::this_thread::sleep_for(std::chrono::milliseconds(ball->speed));
+	while (ball->exists) {
+		if (!keep_going.load()) {
+			break;
 		}
+		ball->move_ball();
+		std::this_thread::sleep_for(std::chrono::milliseconds(ball->speed));
 	}
 }
 
-// void mainThreadFunc(MyWindows *wins) {
-// 	while (wins->run) {
-// 		wclear(wins->main_window);
-//         wins->print_all_borders();
-//         wins->draw_ball(&wins->ball);
-//         wins->refresh_all_windows();
-//         std::this_thread::sleep_for(std::chrono::milliseconds(15));
-// 	}
-// }
 
 void scanKey()
 {
-	while(running) {
+	while(keep_going.load()) {
 		int ch = getch();
 		if (ch == ' ') {
-			running = false;
+			keep_going.store(false);
 			break;
 		}
 	}
 }
+
 
 void generate_balls() {
-	
-	// std::mt19937 mt{rd()};
-	// std::uniform_int_distribution<int> ui(1, 10);
+	while(keep_going.load()) {
+		std::random_device rd;
+		std::mt19937 mt{rd()};
+		std::uniform_int_distribution<int> ui(0, 6);
+		std::this_thread::sleep_for(std::chrono::seconds(ui(mt)));
 
-	for (int i = 0; i < balls_amount; i++) {
-		if (running) {
-			std::random_device rd;
-			std::mt19937 mt{rd()};
-			std::uniform_int_distribution<int> ui(1, 6);
-			std::this_thread::sleep_for(std::chrono::seconds(ui(mt)));
-			threads_vector.push_back(std::thread(ballThreadFunc, &balls_vector[i]));
-			threads_vector[i].detach();
-		} else {
-			break;
-		}
+		// new ball declaration
+		Ball *new_ball = new Ball(15, 30, 6, 80, &running);
+
+		// pushing ball to balls vector
+		balls_vector_ptr->push_back(new_ball);
+		
+		// initialize and run ball thread
+		threads_vector.push_back(std::thread(ballThreadFunc, new_ball));
 	}
 }
+
 
 int main(int argc, char ** argv)
 {
-	initscr();												// initializes the screen
-	noecho();												// no echoing
-	curs_set(0);											// set cursor not visible
+	initscr();
+	noecho();
+	curs_set(0);
 	signal(SIGWINCH, NULL);
+
+	// keep_going initialy set to true
+	keep_going.store(true);
 
 	MyWindows windows = MyWindows();
 	windows.print_all_borders();
 
-	for (int i = 0; i < balls_amount; i++) {
-		balls_vector.push_back(Ball(15, 30, 6, 80, &running));
-	}
+	// scan key thread initialization (waiting for space char to end program)
+	std::thread scan_key_thread (scanKey);
 
-	std::thread run_thread (scanKey);
-	std::thread detach_threads (generate_balls);
+	// generate balls thread initialization
+	std::thread generate_balls_thread (generate_balls);
 
-	bool all_finished = false;
 	wclear(windows.main_window);
 	do {
 		werase(windows.main_window);
         windows.print_all_borders();
-		all_finished = true;
-		for (int i = 0; i < balls_vector.size(); i++) {
-			windows.draw_ball(&balls_vector[i]);
-			if (all_finished && balls_vector[i].exists) {
-				all_finished = false;
-			}
+		for (int i = 0; i < balls_vector_ptr->size(); i++) {
+			windows.draw_ball(balls_vector_ptr->at(i));
 		}
-		if (all_finished) {
-			running = false;
-			break;
-		};
         windows.refresh_all_windows();
         std::this_thread::sleep_for(std::chrono::milliseconds(15));
-	} while (running);
+	} while (keep_going.load());
 	
-	detach_threads.detach();
-	run_thread.detach();
+	generate_balls_thread.join();
+
+	scan_key_thread.join();
+
+	for (int i = 0; i < threads_vector.size(); i++) {
+		threads_vector[i].join();
+	}
 
 	threads_vector.clear();
 	balls_vector.clear();
