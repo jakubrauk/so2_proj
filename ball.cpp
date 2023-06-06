@@ -66,7 +66,7 @@ void Ball::move_ball() {
 		vy = -vy;
 		bounces++;
 	}
-    if (bounces == max_bounces) {
+    if (bounces >= max_bounces) {
 		exists = false;
 		run = false;
 	};

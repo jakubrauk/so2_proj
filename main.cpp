@@ -65,7 +65,7 @@ void ballThreadFunc(Ball *ball) {
 				// A -> B
 				if (ball->is_blocking) {
 					can_enter_a = true;
-					a_zone_cv.notify_one();
+					a_zone_cv.notify_all();
 				}
 				std::unique_lock<std::mutex> lock_b(b_mutex);
 				b_zone_cv.wait(lock_b, [] { return can_enter_b; });
@@ -74,7 +74,7 @@ void ballThreadFunc(Ball *ball) {
 				// B -> A
 				if (ball->is_blocking) {
 					can_enter_b = true;
-					b_zone_cv.notify_one();
+					b_zone_cv.notify_all();
 				}
 				std::unique_lock<std::mutex> lock_a(a_mutex);
 				a_zone_cv.wait(lock_a, [] { return can_enter_a; });
@@ -83,7 +83,7 @@ void ballThreadFunc(Ball *ball) {
 				// B -> C
 				if (ball->is_blocking) {
 					can_enter_b = true;
-					b_zone_cv.notify_one();
+					b_zone_cv.notify_all();
 				}
 				std::unique_lock<std::mutex> lock_c(c_mutex);
 				c_zone_cv.wait(lock_c, [] { return can_enter_c; });
@@ -92,44 +92,26 @@ void ballThreadFunc(Ball *ball) {
 				// C -> B
 				if (ball->is_blocking) {
 					can_enter_c = true;
-					c_zone_cv.notify_one();
+					c_zone_cv.notify_all();
 				}
 				std::unique_lock<std::mutex> lock_b(b_mutex);
 				b_zone_cv.wait(lock_b, [] { return can_enter_b; });
 			}
-		}
-
-		// if (ball->is_blocking && current_zone != next_zone) {
-		// 	// ball is blocking and is changing zones
-		// 	// unlock current zone (current is previous before move_ball called)
-
-		// 	if (current_zone == 1) {
-		// 		can_enter_a = true;
-		// 		a_zone_cv.notify_all();
-		// 	} else if (current_zone == 2) {
-		// 		can_enter_b = true;
-		// 		b_zone_cv.notify_all();
-		// 	} else if (current_zone == 3) {
-		// 		can_enter_c = true;
-		// 		c_zone_cv.notify_all();
-		// 	}
-		// }
-
-		
+		}	
 
 		ball->move_ball();
 		if (!ball->exists && ball->is_blocking) {
 			if (next_zone == 1) {
 				can_enter_a = true;
-				a_zone_cv.notify_one();
+				a_zone_cv.notify_all();
 			}
 			else if (next_zone == 2) {
 				can_enter_b = true;
-				b_zone_cv.notify_one();
+				b_zone_cv.notify_all();
 			}
 			else if (next_zone == 3) {
 				can_enter_c = true;
-				c_zone_cv.notify_one();
+				c_zone_cv.notify_all();
 			}
 		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(ball->speed));
