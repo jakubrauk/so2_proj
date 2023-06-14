@@ -11,8 +11,12 @@ class MyWindows {
         bool run = true;
         Ball ball = Ball(15, 30, 6, 15, &run);
         std::string run_str;
+        int* can_a;
+        int* can_b;
+        int* can_c;
 
-        MyWindows(); // initializes all windows
+
+        MyWindows(int* can_enter_a, int* can_enter_b, int* can_enter_c); // initializes all windows
 
         void print_all_borders();
         void refresh_all_windows();

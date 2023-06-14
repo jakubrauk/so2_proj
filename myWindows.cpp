@@ -1,7 +1,12 @@
 #include "myWindows.h"
 
-MyWindows::MyWindows() {
+MyWindows::MyWindows(int* can_enter_a, int* can_enter_b, int* can_enter_c) {
     main_window = newwin(30, 90, 0, 0);
+
+    can_a = can_enter_a;
+    can_b = can_enter_b;
+    can_c = can_enter_c;
+
     window_a = subwin(main_window, 30, 30, 0, 0);
     window_b = subwin(main_window, 30, 30, 0, 30);
     window_c = subwin(main_window, 30, 30, 0, 60);
@@ -21,6 +26,9 @@ void MyWindows::print_all_borders() {
         run_str = "not running";
     }
 	mvwprintw(main_window, 0, 1, "Projekt SO2 - Jakub Rauk 256768: %s", run_str.c_str());
+    mvwprintw(window_a, 29, 0, "blocked: %d", *can_a);
+    mvwprintw(window_b, 29, 0, "blocked: %d", *can_b);
+    mvwprintw(window_c, 29, 0, "blocked: %d", *can_c);
 
     refresh_all_windows();
 }
