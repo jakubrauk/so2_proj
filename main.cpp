@@ -46,7 +46,7 @@ void ballThreadFunc(Ball *ball) {
 
 		// UNLOCKING - only when changing zones
 		if (ball->is_blocking && current_zone != next_zone) {
-			// var_access_mutex.lock();
+			var_access_mutex.lock();
 			if (current_zone == 1 && next_zone == 2) {
 				// A -> B
 				// A --
@@ -75,7 +75,7 @@ void ballThreadFunc(Ball *ball) {
 				can_enter_c--;
 				c_zone_cv.notify_all();
 			}
-			// var_access_mutex.unlock();
+			var_access_mutex.unlock();
 		}
 
 		// only when changing zones
@@ -105,7 +105,7 @@ void ballThreadFunc(Ball *ball) {
 		ball->move_ball();
 
 		// LOCKING - only when changing zones
-		// var_access_mutex.lock();
+		var_access_mutex.lock();
 		if (ball->exists && ball->is_blocking && keep_going.load()) {
 			if (current_zone != next_zone) {
 				if (current_zone == 1 && next_zone == 2) {
@@ -148,7 +148,7 @@ void ballThreadFunc(Ball *ball) {
 				c_zone_cv.notify_all();
 			}
 		}
-		// var_access_mutex.unlock();
+		var_access_mutex.unlock();
 		std::this_thread::sleep_for(std::chrono::milliseconds(ball->speed));
 	}
 }
@@ -183,7 +183,7 @@ void generate_balls() {
 		
 		int new_ball_zone = new_ball->get_zone_number();
 
-		// var_access_mutex.lock();
+		var_access_mutex.lock();
 		if (new_ball->is_blocking) {
 			if (new_ball_zone == 1) {
 				// can_enter_a.fetch_add(1, std::memory_order_relaxed);
@@ -196,7 +196,7 @@ void generate_balls() {
 				can_enter_c++;
 			}
 		}
-		// var_access_mutex.unlock();
+		var_access_mutex.unlock();
 
 		// initialize and run ball thread
 		threads_vector.push_back(std::thread(ballThreadFunc, new_ball));
