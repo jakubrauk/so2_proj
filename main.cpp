@@ -46,109 +46,139 @@ void ballThreadFunc(Ball *ball) {
 
 		// UNLOCKING - only when changing zones
 		if (ball->is_blocking && current_zone != next_zone) {
-			// var_access_mutex.lock();
 			if (current_zone == 1 && next_zone == 2) {
 				// A -> B
 				// A --
-				// can_enter_a.fetch_sub(1, std::memory_order_relaxed);
-				can_enter_a--;
+				{
+					std::unique_lock<std::mutex> lock_a(a_mutex);
+					can_enter_a--;
+				}
 				a_zone_cv.notify_all();
 			}
 			else if (current_zone == 2 && next_zone == 1) {
 				// B -> A
 				// B --
-				// can_enter_b.fetch_sub(1, std::memory_order_relaxed);
-				can_enter_b--;
+				{
+					std::unique_lock<std::mutex> lock_b(b_mutex);
+					can_enter_b--;
+				}
 				b_zone_cv.notify_all();
 			}
 			else if (current_zone == 2 && next_zone == 3) {
 				// B -> C
 				// B --
-				// can_enter_b.fetch_sub(1, std::memory_order_relaxed);
-				can_enter_b--;
+				{
+					std::unique_lock<std::mutex> lock_b(b_mutex);
+					can_enter_b--;
+				}
 				b_zone_cv.notify_all();
 			}
 			else if (current_zone == 3 && next_zone == 2) {
 				// C -> B
 				// C --
-				// can_enter_c.fetch_sub(1, std::memory_order_relaxed);
-				can_enter_c--;
+				{
+					std::unique_lock<std::mutex> lock_c(c_mutex);
+					can_enter_c--;
+				}
 				c_zone_cv.notify_all();
 			}
-			// var_access_mutex.unlock();
 		}
 
 		// only when changing zones
 		if (current_zone != next_zone) {
 			if (current_zone == 1 && next_zone == 2) {
 				// A -> B
-				std::unique_lock<std::mutex> lock_b(b_mutex);
-				b_zone_cv.wait(lock_b, []() { return can_enter_b == 0; });
+				{
+					std::unique_lock<std::mutex> lock_b(b_mutex);
+					b_zone_cv.wait(lock_b, []() { return can_enter_b == 0; });
+				}
 			}
 			else if (current_zone == 2 && next_zone == 1) {
 				// B -> A
-				std::unique_lock<std::mutex> lock_a(a_mutex);
-				a_zone_cv.wait(lock_a, []() { return can_enter_a == 0; });
+				{
+					std::unique_lock<std::mutex> lock_a(a_mutex);
+					a_zone_cv.wait(lock_a, []() { return can_enter_a == 0; });
+				}
 			}
 			else if (current_zone == 2 && next_zone == 3) {
 				// B -> C
-				std::unique_lock<std::mutex> lock_c(c_mutex);
-				c_zone_cv.wait(lock_c, []() { return can_enter_c == 0; });
+				{
+					std::unique_lock<std::mutex> lock_c(c_mutex);
+					c_zone_cv.wait(lock_c, []() { return can_enter_c == 0; });
+				}
 			}
 			else if (current_zone == 3 && next_zone == 2) {
 				// C -> B
-				std::unique_lock<std::mutex> lock_b(b_mutex);
-				b_zone_cv.wait(lock_b, []() { return can_enter_b == 0; });
+				{
+					std::unique_lock<std::mutex> lock_b(b_mutex);
+					b_zone_cv.wait(lock_b, []() { return can_enter_b == 0; });
+				}
 			}
 		}
 
 		ball->move_ball();
 
 		// LOCKING - only when changing zones
-		// var_access_mutex.lock();
 		if (ball->exists && ball->is_blocking && keep_going.load()) {
 			if (current_zone != next_zone) {
 				if (current_zone == 1 && next_zone == 2) {
 					// A -> B
 					// B ++
-					// can_enter_b.fetch_add(1, std::memory_order_relaxed);
-					can_enter_b++;
+					{
+						std::unique_lock<std::mutex> lock_b(b_mutex);
+						can_enter_b++;
+					}
+					b_zone_cv.notify_all();
 				}
 				else if (current_zone == 2 && next_zone == 1) {
 					// B -> A
 					// A ++
-					// can_enter_a.fetch_add(1, std::memory_order_relaxed);
-					can_enter_a++;
+					{
+						std::unique_lock<std::mutex> lock_a(a_mutex);
+						can_enter_a++;
+					}
+					a_zone_cv.notify_all();
 				}
 				else if (current_zone == 2 && next_zone == 3) {
 					// B -> C
 					// C ++
-					// can_enter_c.fetch_add(1, std::memory_order_relaxed);
-					can_enter_c++;
+					{
+						std::unique_lock<std::mutex> lock_c(c_mutex);
+						can_enter_c++;
+					}
+					c_zone_cv.notify_all();
 				}
 				else if (current_zone == 3 && next_zone == 2) {
 					// C -> B
 					// B ++
-					// can_enter_b.fetch_add(1, std::memory_order_relaxed);
-					can_enter_b++;
+					{
+						std::unique_lock<std::mutex> lock_b(b_mutex);
+						can_enter_b++;
+					}
+					b_zone_cv.notify_all();
 				}
 			}
 		} else if (ball->is_blocking) {
 			if (current_zone == 1) {
-				// can_enter_a.fetch_sub(1, std::memory_order_relaxed);
-				can_enter_a--;
+				{
+					std::unique_lock<std::mutex> lock_a(a_mutex);
+					can_enter_a--;
+				}
 				a_zone_cv.notify_all();
 			} else if (current_zone == 2) {
-				// can_enter_b.fetch_sub(1, std::memory_order_relaxed);
-				can_enter_b--;
+				{
+					std::unique_lock<std::mutex> lock_b(b_mutex);
+					can_enter_b--;
+				}
 				b_zone_cv.notify_all();
 			} else if (current_zone == 3) {
-				// can_enter_c.fetch_sub(1, std::memory_order_relaxed);
-				can_enter_c--;
+				{
+					std::unique_lock<std::mutex> lock_c(c_mutex);
+					can_enter_c--;
+				}
 				c_zone_cv.notify_all();
 			}
 		}
-		// var_access_mutex.unlock();
 		std::this_thread::sleep_for(std::chrono::milliseconds(ball->speed));
 	}
 }
@@ -166,7 +196,6 @@ void scanKey()
 			a_zone_cv.notify_all();
 			b_zone_cv.notify_all();
 			c_zone_cv.notify_all();
-			// var_access_mutex.unlock();
 			break;
 		}
 	}
@@ -183,17 +212,19 @@ void generate_balls() {
 		
 		int new_ball_zone = new_ball->get_zone_number();
 
-		// var_access_mutex.lock();
 		if (new_ball->is_blocking) {
 			if (new_ball_zone == 1) {
-				// can_enter_a.fetch_add(1, std::memory_order_relaxed);
+				std::unique_lock<std::mutex> lock_a(a_mutex);
 				can_enter_a++;
+				a_zone_cv.notify_all();
 			} else if (new_ball_zone == 2) {
-				// can_enter_b.fetch_sub(1, std::memory_order_relaxed);
+				std::unique_lock<std::mutex> lock_b(b_mutex);
 				can_enter_b++;
+				b_zone_cv.notify_all();
 			} else if (new_ball_zone == 3) {
-				// can_enter_c.fetch_sub(1, std::memory_order_relaxed);
+				std::unique_lock<std::mutex> lock_c(c_mutex);
 				can_enter_c++;
+				c_zone_cv.notify_all();
 			}
 		}
 		// var_access_mutex.unlock();
